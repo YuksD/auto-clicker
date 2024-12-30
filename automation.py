@@ -527,16 +527,13 @@ class AutoClickerApp:
 
     def process_queue(self):
         """İşlem kuyruğunu işler"""
-        if not self.running:
-            return
-        
-        if self.paused:
+        if not self.running or self.paused:
             return
         
         try:
             # Kuyrukta set var mı kontrol et
             if not self.execution_queue:
-                self.toggle_automation()  # Otomasyon bittiğinde durdur
+                self.toggle_automation()
                 return
             
             # Aktif seti al
@@ -544,7 +541,7 @@ class AutoClickerApp:
             current_set = self.sets[current_set_id]
             
             # Setin döngü sayısını al
-            loop_count = int(self.loop_count_entry.get())
+            loop_count = current_set['loop_count']
             
             # Koordinatları işle
             coordinates = current_set['coordinates']
@@ -552,15 +549,12 @@ class AutoClickerApp:
             
             # Tüm döngüler tamamlandı mı kontrol et
             if self.current_loop >= loop_count:
-                # Seti tamamladık, sonraki sete geç
                 self.current_queue_index += 1
                 self.current_loop = 0
                 self.current_coord = 0
                 
-                # Tüm setler tamamlandı mı kontrol et
                 if self.current_queue_index >= len(self.execution_queue):
-                    # Otomasyonu durdur ama kuyruğu temizleme
-                    self.current_queue_index = 0  # Başa dön
+                    self.current_queue_index = 0
                     self.running = False
                     self.automation_button.config(
                         text="▶️ Otomasyonu Başlat",
@@ -573,7 +567,6 @@ class AutoClickerApp:
                     )
                     return
                 else:
-                    # Sonraki sete devam et
                     self.root.after(100, self.process_queue)
                 return
             
@@ -595,15 +588,15 @@ class AutoClickerApp:
                 elif clicks[self.current_coord] == 'double':
                     pyautogui.doubleClick(coord.x, coord.y)
                 
-                # Metin varsa yaz
-                text = self.text_entries[self.current_coord].get().strip()
-                if text:
-                    time.sleep(0.1)  # Kısa bir bekleme
+                # Metin varsa yaz - Setin kendi verisini kullan
+                text = current_set['texts'][self.current_coord]
+                if text and text.strip():
+                    time.sleep(0.1)
                     pyautogui.write(text)
                 
                 # Gecikme süresini uygula
                 try:
-                    delay = float(self.delay_entries[self.current_coord].get())
+                    delay = float(current_set['delays'][self.current_coord])
                 except ValueError:
                     delay = 0.5
                 
@@ -974,6 +967,9 @@ class AutoClickerApp:
         if set_id not in self.sets:
             return
         
+        # Mevcut setin metin verilerini kaydet
+        self.sets[self.active_set]['texts'] = [entry.get() for entry in self.text_entries]
+        
         # Aktif seti güncelle
         self.active_set = set_id
         
@@ -1028,9 +1024,10 @@ class AutoClickerApp:
         self.loop_count_entry.insert(0, str(self.sets[set_id]['loop_count']))
         
         # Metin girişlerini güncelle
-        for i, text in enumerate(self.sets[set_id].get('texts', [''] * 20)):
+        for i, text in enumerate(self.sets[set_id]['texts']):
             self.text_entries[i].delete(0, tk.END)
-            self.text_entries[i].insert(0, text)
+            if text:  # None veya boş string kontrolü
+                self.text_entries[i].insert(0, text)
 
     def update_coordinates_ui(self, set_data):
         """Set verilerine göre UI'ı günceller"""
@@ -1281,6 +1278,9 @@ class AutoClickerApp:
                 messagebox.showwarning("Uyarı", "İşlem kuyruğu boş!")
                 return
                 
+            # Başlamadan önce mevcut setin metin verilerini kaydet
+            self.sets[self.active_set]['texts'] = [entry.get() for entry in self.text_entries]
+            
             # Otomasyonu başlat
             self.running = True
             self.paused = False
@@ -1484,15 +1484,17 @@ class AutoClickerApp:
     def save_file(self):
         """Mevcut dosyaya kaydeder"""
         if not hasattr(self, 'current_file'):
-            # Eğer daha önce kaydedilmemişse "Farklı Kaydet" dialogunu aç
             return self.save_as_file()
         
         try:
+            # Mevcut setin metin verilerini kaydet
+            self.sets[self.active_set]['texts'] = [entry.get() for entry in self.text_entries]
+            
             data = {
                 'sets': {},
                 'active_set': self.active_set,
                 'current_set_id': self.current_set_id,
-                'execution_queue': self.execution_queue  # Kuyruğu kaydet
+                'execution_queue': self.execution_queue
             }
             
             # Her seti kaydet
@@ -1503,10 +1505,10 @@ class AutoClickerApp:
                                   for coord in set_data['coordinates']],
                     'names': set_data['names'],
                     'clicks': set_data['clicks'],
-                    'delays': [entry.get() for entry in self.delay_entries],
+                    'delays': set_data['delays'],
                     'order': set_data['order'],
                     'loop_count': set_data['loop_count'],
-                    'texts': [entry.get() for entry in self.text_entries]  # Metin kutularının içeriğini kaydet
+                    'texts': set_data['texts']  # Metin verilerini kaydet
                 }
             
             with open(self.current_file, 'w', encoding='utf-8') as f:
