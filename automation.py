@@ -1492,7 +1492,7 @@ class AutoClickerApp:
                 'sets': {},
                 'active_set': self.active_set,
                 'current_set_id': self.current_set_id,
-                'execution_queue': self.execution_queue
+                'execution_queue': self.execution_queue  # Kuyruğu kaydet
             }
             
             # Her seti kaydet
@@ -1505,7 +1505,8 @@ class AutoClickerApp:
                     'clicks': set_data['clicks'],
                     'delays': [entry.get() for entry in self.delay_entries],
                     'order': set_data['order'],
-                    'loop_count': set_data['loop_count']
+                    'loop_count': set_data['loop_count'],
+                    'texts': [entry.get() for entry in self.text_entries]  # Metin kutularının içeriğini kaydet
                 }
             
             with open(self.current_file, 'w', encoding='utf-8') as f:
@@ -1561,75 +1562,24 @@ class AutoClickerApp:
                     'clicks': set_data['clicks'],
                     'delays': set_data['delays'],
                     'order': set_data['order'],
-                    'loop_count': set_data['loop_count']
+                    'loop_count': set_data['loop_count'],
+                    'texts': set_data.get('texts', [''] * 20)  # Metin kutularının içeriğini yükle, yoksa boş liste
                 }
                 
-                # Her set için bir frame oluştur
-                set_frame = ttk.Frame(self.set_buttons_frame)
-                set_frame.grid(row=0, column=len(self.set_buttons)+1, padx=10, sticky="w")
-                
-                # Set butonu
-                set_btn = tk.Button(
-                    set_frame,
-                    text=set_data['name'],
-                    command=lambda sid=set_id: self.switch_set(sid),
-                    bg=self.colors['bg'],
-                    fg=self.colors['text'],
-                    font=('Segoe UI', 9),
-                    relief=tk.RAISED,
-                    bd=1,
-                    width=10
-                )
-                set_btn.pack(side=tk.LEFT, padx=2)
-                
-                # İsim Değiştir butonu
-                rename_btn = tk.Button(
-                    set_frame,
-                    text="✏️",
-                    command=lambda sid=set_id: self.rename_set(sid),
-                    bg=self.colors['bg'],
-                    fg=self.colors['text'],
-                    font=('Segoe UI', 9),
-                    relief=tk.FLAT,
-                    bd=0,
-                    width=3
-                )
-                rename_btn.pack(side=tk.LEFT, padx=2)
-                
-                # Kuyruğa Ekle butonu
-                add_queue_btn = tk.Button(
-                    set_frame,
-                    text="➕",
-                    command=lambda sid=set_id: self.add_to_queue(sid),
-                    bg=self.colors['success'],
-                    fg='white',
-                    font=('Segoe UI', 9),
-                    relief=tk.RAISED,
-                    bd=1,
-                    width=3
-                )
-                add_queue_btn.pack(side=tk.LEFT, padx=2)
-                
-                self.set_buttons.append(set_btn)
-                
-                # Eğer bu aktif set ise, butonun rengini güncelle
-                if set_id == data['active_set']:
-                    set_btn.configure(bg=self.colors['primary'], fg='white')
+                # Set butonlarını oluştur
+                self.create_set_button(set_id)
             
             # Diğer verileri yükle
             self.active_set = data['active_set']
             self.current_set_id = data['current_set_id']
-            self.execution_queue = data.get('execution_queue', [])
+            self.execution_queue = data.get('execution_queue', [])  # Kuyruğu yükle, yoksa boş liste
             
             # Dosya yolunu kaydet
             self.current_file = file_path
             
             # UI'ı güncelle
             self.switch_set(self.active_set)
-            
-            # Keyboard hook'larını yeniden bağla
-            keyboard.unhook_all()
-            keyboard.on_press_key('p', self.handle_pause_key)
+            self.update_queue_ui()  # Kuyruk UI'ını güncelle
             
             messagebox.showinfo("Başarılı", "Dosya yüklendi!")
             
