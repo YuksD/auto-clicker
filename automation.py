@@ -17,13 +17,60 @@ class Point:
 
 class AutoClickerApp:
     def __init__(self):
+        # Renkler
+        self.colors = {
+            'bg': '#F5F7FA',  # Açık gri arka plan
+            'text': '#2D3748',  # Koyu gri metin
+            'primary': '#4299E1',  # Mavi vurgu
+            'secondary': '#A0AEC0',  # Orta gri
+            'success': '#48BB78',  # Yeşil
+            'danger': '#F56565',  # Kırmızı
+            'warning': '#ECC94B',  # Sarı
+            'hover': '#3182CE',  # Hover durumu için koyu mavi
+            'border': '#E2E8F0'  # Kenarlık rengi
+        }
+        
+        # Stil sabitleri
+        self.styles = {
+            'font_family': 'Segoe UI',
+            'button_padding': '8px 16px',
+            'border_radius': 4,
+            'spacing': 10,
+            'header_font_size': 12,
+            'text_font_size': 10,
+            'button_font_size': 10
+        }
+
         self.root = tk.Tk()
         self.root.title("Otomasyon")
         self.root.resizable(True, True)
-        # Minimum pencere boyutu
-        self.root.minsize(800, 600)
+        self.root.minsize(900, 700)  # Minimum pencere boyutunu artırdım
         
-        # Grid ağırlıklarını ayarla
+        # Ana pencere stili
+        self.root.configure(bg=self.colors['bg'])
+        
+        # ttk stilleri
+        style = ttk.Style()
+        style.configure('TFrame', background=self.colors['bg'])
+        style.configure('TLabelframe', background=self.colors['bg'])
+        style.configure('TLabelframe.Label', 
+            background=self.colors['bg'],
+            foreground=self.colors['text'],
+            font=(self.styles['font_family'], self.styles['header_font_size'], 'bold')
+        )
+        style.configure('TLabel',
+            background=self.colors['bg'],
+            foreground=self.colors['text'],
+            font=(self.styles['font_family'], self.styles['text_font_size'])
+        )
+        style.configure('TEntry',
+            fieldbackground='white',
+            borderwidth=1,
+            relief='solid',
+            font=(self.styles['font_family'], self.styles['text_font_size'])
+        )
+        
+        # Grid ağırlıkları
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
         # Pencere kapatma protokolü
@@ -31,16 +78,6 @@ class AutoClickerApp:
         
         # P tuşu ile duraklatma/devam etme
         keyboard.on_press_key('p', self.handle_pause_key)
-        
-        # Renkler
-        self.colors = {
-            'bg': '#f0f0f0',
-            'text': '#333333',
-            'primary': '#007bff',
-            'success': '#28a745',
-            'danger': '#dc3545',
-            'warning': '#ffc107'
-        }
         
         # Set yönetimi için değişkenler
         self.sets = {}
@@ -55,12 +92,12 @@ class AutoClickerApp:
         self.order_entries = []
         self.goto_buttons = []
         self.update_buttons = []
-        self.double_buttons = []  # Double click butonları için liste eklendi
+        self.double_buttons = []
         self.set_buttons = []
+        self.text_entries = []  # Metin girişi için yeni liste
         
         # Varsayılan değerler
         self.delay_times = ['0.5'] * 20
-        
         
         # Çalışma durumu için değişkenler
         self.running = False
@@ -75,14 +112,16 @@ class AutoClickerApp:
             'name': "Set 1",
             'coordinates': [None] * 20,
             'names': [f"K {i+1}" for i in range(20)],
-            'clicks': ['left'] * 20,  # Varsayılan olarak sol tık
+            'clicks': ['left'] * 20,
             'delays': ['0.5'] * 20,
             'order': list(range(20)),
-            'loop_count': 1
+            'loop_count': 1,
+            'texts': [''] * 20  # Her koordinat için metin alanı
         }
         
         # UI kurulumu
         self.setup_ui()
+
     def setup_ui(self):
         # Menü çubuğu
         menubar = tk.Menu(self.root)
@@ -128,8 +167,8 @@ class AutoClickerApp:
         add_set_btn.grid(row=0, column=0, padx=(0, 15))
         
         # Koordinatlar Frame'i - weight'leri ekledik
-        coordinates_frame = ttk.LabelFrame(main_frame, text="Koordinatlar", padding="15")
-        coordinates_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        coordinates_frame = ttk.LabelFrame(main_frame, text="Koordinatlar", padding="20")
+        coordinates_frame.grid(row=1, column=0, sticky="nsew", padx=self.styles['spacing'], pady=self.styles['spacing'])
         coordinates_frame.grid_rowconfigure(1, weight=1)
         coordinates_frame.grid_columnconfigure(0, weight=1)
         
@@ -144,10 +183,13 @@ class AutoClickerApp:
             command=self.toggle_coordinate_mode,
             bg=self.colors['bg'],
             fg=self.colors['text'],
-            font=('Segoe UI', 10),
-            width=35
+            font=(self.styles['font_family'], self.styles['button_font_size'], 'bold'),
+            width=35,
+            relief=tk.RAISED,
+            bd=1,
+            cursor='hand2'
         )
-        self.coordinate_mode_button.pack(side=tk.LEFT, padx=10)
+        self.coordinate_mode_button.pack(side=tk.LEFT, padx=self.styles['spacing'])
         
         # Döngü sayısı için frame
         loop_frame = ttk.Frame(top_frame)
@@ -179,14 +221,19 @@ class AutoClickerApp:
         coordinates_list_frame.grid_columnconfigure(1, weight=1)
         
         # Başlık satırı
-        headers = ["K", "Tıklama", "", "", "Gecikme", "Sıra", "Git", "Güncelle"]
-        header_widths = [15, 8, 8, 8, 8, 5, 5, 8]
+        headers = ["Koordinat", "Sol Tık", "Sağ Tık", "Çift Tık", "Metin", "Gecikme", "Sıra", "Git", "Güncelle"]
+        header_widths = [20, 8, 8, 8, 15, 8, 5, 5, 8]  # Metin sütunu için genişlik ekledik
         
         # Her sütun için başlıkları ekle
         for col in [left_column, right_column]:
             for i, (header, width) in enumerate(zip(headers, header_widths)):
-                header_label = ttk.Label(col, text=header, width=width)
-                header_label.grid(row=0, column=i, padx=2, pady=(0, 5))
+                header_label = ttk.Label(
+                    col, 
+                    text=header, 
+                    width=width,
+                    font=(self.styles['font_family'], self.styles['header_font_size'], 'bold')
+                )
+                header_label.grid(row=0, column=i, padx=2, pady=(0, 10))
         
         # Koordinat listesi
         for i in range(20):
@@ -197,6 +244,7 @@ class AutoClickerApp:
             # Koordinat etiketi
             coord_label = ttk.Label(current_frame, text=f"K {i+1}: ", width=15)
             coord_label.grid(row=row, column=0, padx=2, pady=2, sticky="w")
+            coord_label.bind('<Double-Button-1>', lambda e, idx=i: self.start_edit_label(e, idx))  # Çift tıklama olayını bağla
             self.coordinates_labels.append(coord_label)
             
             # Sol tık butonu
@@ -235,17 +283,23 @@ class AutoClickerApp:
             double_btn.grid(row=row, column=3, padx=2, pady=2)
             self.double_buttons.append(double_btn)
             
+            # Metin girişi alanı
+            text_entry = ttk.Entry(current_frame, width=15)
+            text_entry.grid(row=row, column=4, padx=2, pady=2)
+            text_entry.bind('<Return>', self.clear_focus)
+            self.text_entries.append(text_entry)
+            
             # Gecikme süresi girişi
             delay_entry = ttk.Entry(current_frame, width=8)
             delay_entry.insert(0, "0.5")
-            delay_entry.grid(row=row, column=4, padx=2, pady=2)
+            delay_entry.grid(row=row, column=5, padx=2, pady=2)
             delay_entry.bind('<Return>', self.clear_focus)
             self.delay_entries.append(delay_entry)
             
             # Sıra numarası girişi
             order_entry = ttk.Entry(current_frame, width=5)
             order_entry.insert(0, str(i))
-            order_entry.grid(row=row, column=5, padx=2, pady=2)
+            order_entry.grid(row=row, column=6, padx=2, pady=2)
             order_entry.bind('<Return>', self.clear_focus)
             self.order_entries.append(order_entry)
             
@@ -256,7 +310,7 @@ class AutoClickerApp:
                 command=lambda x=i: self.goto_coordinate(x),
                 width=5
             )
-            goto_btn.grid(row=row, column=6, padx=2, pady=2)
+            goto_btn.grid(row=row, column=7, padx=2, pady=2)
             self.goto_buttons.append(goto_btn)
             
             # Güncelle butonu
@@ -266,7 +320,7 @@ class AutoClickerApp:
                 command=lambda x=i: self.update_coordinate(x),
                 width=8
             )
-            update_btn.grid(row=row, column=7, padx=2, pady=2)
+            update_btn.grid(row=row, column=8, padx=2, pady=2)
             self.update_buttons.append(update_btn)
         
         # Kontrol paneli
@@ -281,10 +335,13 @@ class AutoClickerApp:
             command=self.toggle_automation,
             bg=self.colors['success'],
             fg='white',
-            font=('Segoe UI', 9, 'bold'),
-            width=20
+            font=(self.styles['font_family'], self.styles['button_font_size'], 'bold'),
+            width=25,
+            relief=tk.RAISED,
+            bd=1,
+            cursor='hand2'
         )
-        self.automation_button.grid(row=0, column=3, padx=5)
+        self.automation_button.grid(row=0, column=3, padx=self.styles['spacing'])
         
         # Duraklat butonu
         self.pause_button = tk.Button(
@@ -294,14 +351,17 @@ class AutoClickerApp:
             state=tk.DISABLED,
             bg=self.colors['bg'],
             fg=self.colors['text'],
-            font=('Segoe UI', 9),
-            width=15
+            font=(self.styles['font_family'], self.styles['button_font_size']),
+            width=20,
+            relief=tk.RAISED,
+            bd=1,
+            cursor='hand2'
         )
-        self.pause_button.grid(row=0, column=4, padx=5)
+        self.pause_button.grid(row=0, column=4, padx=self.styles['spacing'])
 
         # İşlem Kuyruğu Frame'i
-        queue_frame = ttk.LabelFrame(main_frame, text="İşlem Kuyruğu", padding="15")
-        queue_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
+        queue_frame = ttk.LabelFrame(main_frame, text="İşlem Kuyruğu", padding="20")
+        queue_frame.grid(row=3, column=0, sticky="ew", padx=self.styles['spacing'], pady=self.styles['spacing'])
         queue_frame.grid_columnconfigure(0, weight=1)
         
         # İşlem kuyruğu için frame
@@ -315,11 +375,12 @@ class AutoClickerApp:
             command=self.clear_queue,
             bg=self.colors['danger'],
             fg='white',
-            font=('Segoe UI', 9),
+            font=(self.styles['font_family'], self.styles['button_font_size']),
             relief=tk.RAISED,
-            bd=1
+            bd=1,
+            cursor='hand2'
         )
-        clear_queue_btn.grid(row=0, column=0, padx=5)
+        clear_queue_btn.grid(row=0, column=0, padx=self.styles['spacing'])
         
         # Kuyruk listesi için frame
         self.queue_list_frame = ttk.Frame(queue_frame)
@@ -336,7 +397,7 @@ class AutoClickerApp:
         """Set butonu oluşturur"""
         # Her set için bir frame oluştur
         set_frame = ttk.Frame(self.set_buttons_frame)
-        set_frame.grid(row=0, column=len(self.set_buttons)+1, padx=10)  # Setler arası boşluğu artırdık
+        set_frame.grid(row=0, column=len(self.set_buttons)+1, padx=self.styles['spacing'], sticky="w")
         
         # Set butonu
         set_btn = tk.Button(
@@ -345,13 +406,13 @@ class AutoClickerApp:
             command=lambda: self.switch_set(set_id),
             bg=self.colors['bg'],
             fg=self.colors['text'],
-            font=('Segoe UI', 9),
+            font=(self.styles['font_family'], self.styles['button_font_size']),
             relief=tk.RAISED,
             bd=1,
-            width=10  # Genişliği artırdık
+            width=12,
+            cursor='hand2'
         )
-        set_btn.pack(side=tk.LEFT, padx=2)  # grid yerine pack kullanıyoruz
-        self.set_buttons.append(set_btn)
+        set_btn.pack(side=tk.LEFT, padx=2)
         
         # İsim Değiştir butonu
         rename_btn = tk.Button(
@@ -360,12 +421,13 @@ class AutoClickerApp:
             command=lambda: self.rename_set(set_id),
             bg=self.colors['bg'],
             fg=self.colors['text'],
-            font=('Segoe UI', 9),
+            font=(self.styles['font_family'], self.styles['button_font_size']),
             relief=tk.FLAT,
             bd=0,
-            width=3  # Genişliği ayarladık
+            width=3,
+            cursor='hand2'
         )
-        rename_btn.pack(side=tk.LEFT, padx=2)  # Yan yana dizilim
+        rename_btn.pack(side=tk.LEFT, padx=2)
         
         # Kuyruğa Ekle butonu
         add_queue_btn = tk.Button(
@@ -374,12 +436,15 @@ class AutoClickerApp:
             command=lambda: self.add_to_queue(set_id),
             bg=self.colors['success'],
             fg='white',
-            font=('Segoe UI', 9),
+            font=(self.styles['font_family'], self.styles['button_font_size']),
             relief=tk.RAISED,
             bd=1,
-            width=3  # Genişliği ayarladık
+            width=3,
+            cursor='hand2'
         )
-        add_queue_btn.pack(side=tk.LEFT, padx=2)  # Yan yana dizilim
+        add_queue_btn.pack(side=tk.LEFT, padx=2)
+        
+        self.set_buttons.append(set_btn)
 
     def setup_control_panel(self):
         """Kontrol panelini oluşturur"""
@@ -449,7 +514,7 @@ class AutoClickerApp:
             return
         
         if self.paused:
-            return  # Sadece dön, toggle_automation çağırma
+            return
         
         try:
             # Kuyrukta set var mı kontrol et
@@ -512,6 +577,12 @@ class AutoClickerApp:
                     pyautogui.click(coord.x, coord.y, button='right')
                 elif clicks[self.current_coord] == 'double':
                     pyautogui.doubleClick(coord.x, coord.y)
+                
+                # Metin varsa yaz
+                text = self.text_entries[self.current_coord].get().strip()
+                if text:
+                    time.sleep(0.1)  # Kısa bir bekleme
+                    pyautogui.write(text)
                 
                 # Gecikme süresini uygula
                 try:
@@ -819,16 +890,16 @@ class AutoClickerApp:
     def start_edit_label(self, event, index):
         """Etiket düzenleme modunu başlatır"""
         label = self.coordinates_labels[index]
-        current_text = label.cget("text").split(": ")[0]  # Mevcut koordinat ismini al
+        current_name = self.sets[self.active_set]['names'][index]  # Mevcut ismi al
         
         # Düzenleme için Entry widget'ı oluştur
-        edit_entry = ttk.Entry(label.master, width=20)
-        edit_entry.insert(0, current_text)
+        edit_entry = ttk.Entry(label.master, width=15)
+        edit_entry.insert(0, current_name)
         edit_entry.select_range(0, tk.END)  # Metni seç
         
-        # Entry'yi yerleştir ve fokusla
-        label.pack_forget()  # Etiketi geçici olarak gizle
-        edit_entry.pack(side=tk.LEFT)
+        # Entry'yi yerleştir
+        edit_entry.grid(row=(index % 10) + 1, column=0, padx=2, pady=2, sticky="w")
+        label.grid_remove()  # Etiketi geçici olarak gizle
         edit_entry.focus()
         
         def save_label(event=None):
@@ -837,18 +908,24 @@ class AutoClickerApp:
             if not new_text:  # Boş ise varsayılan ismi kullan
                 new_text = f"K {index+1}"
             
-            # Koordinat değerini koruyarak etiketi güncelle
-            coord_value = label.cget("text").split(": ")[1]
-            label.configure(text=f"{new_text}: {coord_value}")
+            # İsmi güncelle
+            self.sets[self.active_set]['names'][index] = new_text
+            
+            # Koordinat değerini al
+            coord = self.sets[self.active_set]['coordinates'][index]
+            if coord:
+                label.configure(text=f"{new_text}: ({coord.x}, {coord.y})")
+            else:
+                label.configure(text=f"{new_text}: ")
             
             # Düzenleme modundan çık
             edit_entry.destroy()
-            label.pack(side=tk.LEFT)
+            label.grid()
         
         def cancel_edit(event=None):
             """Düzenlemeyi iptal et"""
             edit_entry.destroy()
-            label.pack(side=tk.LEFT)
+            label.grid()
         
         # Entry olaylarını bağla
         edit_entry.bind('<Return>', save_label)  # Enter tuşu
@@ -932,6 +1009,11 @@ class AutoClickerApp:
         # Döngü sayısını güncelle
         self.loop_count_entry.delete(0, tk.END)
         self.loop_count_entry.insert(0, str(self.sets[set_id]['loop_count']))
+        
+        # Metin girişlerini güncelle
+        for i, text in enumerate(self.sets[set_id].get('texts', [''] * 20)):
+            self.text_entries[i].delete(0, tk.END)
+            self.text_entries[i].insert(0, text)
 
     def update_coordinates_ui(self, set_data):
         """Set verilerine göre UI'ı günceller"""
@@ -1255,10 +1337,11 @@ class AutoClickerApp:
             'name': f"Set {self.current_set_id}",
             'coordinates': [None] * 20,
             'names': [f"K {i+1}" for i in range(20)],
-            'clicks': ['left'] * 20,  # Varsayılan olarak sol tık
+            'clicks': ['left'] * 20,
             'delays': ['0.5'] * 20,
             'order': list(range(20)),
-            'loop_count': 1
+            'loop_count': 1,
+            'texts': [''] * 20  # Her koordinat için metin alanı
         }
         
         # Set butonunu oluştur
@@ -1362,7 +1445,8 @@ class AutoClickerApp:
                 'clicks': ['left'] * 20,
                 'delays': ['0.5'] * 20,
                 'order': list(range(20)),
-                'loop_count': 1
+                'loop_count': 1,
+                'texts': [''] * 20  # Her koordinat için metin alanı
             }
             
             # Set butonlarını temizle
