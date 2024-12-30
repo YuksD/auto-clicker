@@ -1565,7 +1565,7 @@ class AutoClickerApp:
                     'delays': set_data['delays'],
                     'order': set_data['order'],
                     'loop_count': set_data['loop_count'],
-                    'texts': set_data.get('texts', [''] * 20)  # Metin kutularının içeriğini yükle, yoksa boş liste
+                    'texts': set_data.get('texts', [''] * 20)  # Metin verilerini yükle, yoksa boş liste
                 }
                 
                 # Set butonlarını oluştur
