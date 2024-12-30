@@ -458,7 +458,7 @@ class AutoClickerApp:
                 return
             
             # Aktif seti al
-            current_set_id = self.execution_queue[0]
+            current_set_id = self.execution_queue[self.current_queue_index]
             current_set = self.sets[current_set_id]
             
             # Setin döngü sayısını al
@@ -470,16 +470,29 @@ class AutoClickerApp:
             
             # Tüm döngüler tamamlandı mı kontrol et
             if self.current_loop >= loop_count:
-                # Seti tamamladık, kuyruğun başından çıkar
-                self.execution_queue.pop(0)
+                # Seti tamamladık, sonraki sete geç
+                self.current_queue_index += 1
                 self.current_loop = 0
                 self.current_coord = 0
                 
-                # Kuyrukta başka set varsa devam et
-                if self.execution_queue:
-                    self.root.after(100, self.process_queue)
+                # Tüm setler tamamlandı mı kontrol et
+                if self.current_queue_index >= len(self.execution_queue):
+                    # Otomasyonu durdur ama kuyruğu temizleme
+                    self.current_queue_index = 0  # Başa dön
+                    self.running = False
+                    self.automation_button.config(
+                        text="▶️ Otomasyonu Başlat",
+                        bg=self.colors['success']
+                    )
+                    self.pause_button.config(
+                        text="⏸️ Duraklat",
+                        bg=self.colors['bg'],
+                        state=tk.DISABLED
+                    )
+                    return
                 else:
-                    self.toggle_automation()
+                    # Sonraki sete devam et
+                    self.root.after(100, self.process_queue)
                 return
             
             # Tüm koordinatlar tamamlandı mı kontrol et
@@ -1060,84 +1073,79 @@ class AutoClickerApp:
 
     def clear_queue(self):
         """İşlem kuyruğunu temizler"""
+        # Çalışan otomasyonu durdur
+        if self.running:
+            self.toggle_automation()
+        
         try:
             self.execution_queue = []
+            self.current_queue_index = 0
             
-            # Kuyruk listesindeki tüm widget'ları temizle
-            for widget in self.queue_list_frame.winfo_children():
-                widget.destroy()
+            # UI'ı güncelle
+            self.update_queue_ui()
                 
         except Exception as e:
             print(f"Kuyruk temizleme hatası: {e}")
-            # Hata durumunda widget'ları zorla temizle
-            if hasattr(self, 'queue_list_frame'):
-                for widget in self.queue_list_frame.winfo_children():
-                    try:
-                        widget.destroy()
-                    except:
-                        pass
+            messagebox.showerror("Hata", f"Kuyruk temizleme işlemi başarısız: {str(e)}")
 
     def add_to_queue(self, set_id):
         """Seti kuyruğa ekler"""
         self.execution_queue.append(set_id)
+        self.update_queue_ui()
+
+    def update_queue_ui(self):
+        """Kuyruk UI'ını günceller"""
+        # Kuyruk listesindeki tüm widget'ları temizle
+        for widget in self.queue_list_frame.winfo_children():
+            widget.destroy()
         
-        # Kuyruk listesine set'i ekle
-        queue_item = ttk.Frame(self.queue_list_frame)
-        queue_item.grid(row=0, column=len(self.execution_queue)-1, sticky="ew", padx=2)
-        
-        # Set etiketi
-        set_label = ttk.Label(queue_item, text=f"Set {set_id}")
-        set_label.grid(row=0, column=0, padx=(5, 10))
-        
-        # Kaldır butonu
-        remove_btn = tk.Button(
-            queue_item,
-            text="❌",
-            command=lambda x=set_id: self.remove_from_queue(x),
-            bg=self.colors['bg'],
-            fg=self.colors['danger'],
-            font=('Segoe UI', 9),
-            relief=tk.FLAT,
-            bd=0
-        )
-        remove_btn.grid(row=0, column=1)
+        # Tüm kuyruğu yeniden oluştur
+        for i, current_set_id in enumerate(self.execution_queue):
+            # Yeni frame oluştur
+            queue_item = ttk.Frame(self.queue_list_frame)
+            queue_item.grid(row=0, column=i, sticky="ew", padx=2)
+            
+            # Set ismini al
+            set_name = self.sets[current_set_id]['name']
+            
+            # Set etiketi
+            set_label = ttk.Label(queue_item, text=set_name)
+            set_label.grid(row=0, column=0, padx=(5, 10))
+            
+            # Kaldır butonu için özel bir fonksiyon oluştur
+            def create_remove_command(sid):
+                return lambda: self.remove_from_queue(sid)
+            
+            # Kaldır butonu
+            remove_btn = tk.Button(
+                queue_item,
+                text="❌",
+                command=create_remove_command(current_set_id),
+                bg=self.colors['bg'],
+                fg=self.colors['danger'],
+                font=('Segoe UI', 9),
+                relief=tk.FLAT,
+                bd=0
+            )
+            remove_btn.grid(row=0, column=1)
 
     def remove_from_queue(self, set_id):
         """Seti kuyruktan kaldırır"""
         try:
             if set_id in self.execution_queue:
+                # Çalışan otomasyonu durdur
+                if self.running and len(self.execution_queue) > 0 and self.execution_queue[0] == set_id:
+                    self.toggle_automation()
+                
                 # Seti kuyruktan kaldır
                 self.execution_queue.remove(set_id)
                 
-                # Tüm widget'ları temizle
-                for widget in self.queue_list_frame.winfo_children():
-                    widget.destroy()
-                
-                # Setleri yeniden ekle
-                for i, current_set_id in enumerate(self.execution_queue):
-                    # Yeni frame oluştur
-                    queue_item = ttk.Frame(self.queue_list_frame)
-                    queue_item.grid(row=0, column=i, sticky="ew", padx=2)
-                    
-                    # Set etiketi
-                    set_label = ttk.Label(queue_item, text=f"Set {current_set_id}")
-                    set_label.grid(row=0, column=0, padx=(5, 10))
-                    
-                    # Kaldır butonu
-                    remove_btn = tk.Button(
-                        queue_item,
-                        text="❌",
-                        command=lambda x=current_set_id: self.remove_from_queue(x),
-                        bg=self.colors['bg'],
-                        fg=self.colors['danger'],
-                        font=('Segoe UI', 9),
-                        relief=tk.FLAT,
-                        bd=0
-                    )
-                    remove_btn.grid(row=0, column=1)
+                # UI'ı güncelle
+                self.update_queue_ui()
                     
         except Exception as e:
             print(f"Kuyruktan set kaldırma hatası: {e}")
+            messagebox.showerror("Hata", f"Set kaldırma işlemi başarısız: {str(e)}")
 
     def toggle_coordinate_mode(self):
         """Koordinat Kaydetme Modunu Açar/Kapatır"""
@@ -1169,14 +1177,18 @@ class AutoClickerApp:
     def toggle_automation(self):
         """Otomasyonu başlatır/durdurur"""
         if not self.running:
+            # Kuyrukta set var mı kontrol et
+            if not self.execution_queue:
+                messagebox.showwarning("Uyarı", "İşlem kuyruğu boş!")
+                return
+                
             # Otomasyonu başlat
             self.running = True
             self.paused = False
             
             # Yeni başlatma ise sayaçları sıfırla
-            if not hasattr(self, 'current_loop'):
-                self.current_loop = 0
-                self.current_coord = 0
+            self.current_loop = 0
+            self.current_coord = 0
             
             # P tuşunu bağla
             keyboard.on_press_key('p', self.handle_pause_key)
@@ -1197,12 +1209,6 @@ class AutoClickerApp:
             # Otomasyonu durdur
             self.running = False
             self.paused = False
-            
-            # Sayaçları sıfırla
-            if hasattr(self, 'current_loop'):
-                delattr(self, 'current_loop')
-            if hasattr(self, 'current_coord'):
-                delattr(self, 'current_coord')
             
             # P tuşu bağlantısını kaldır
             keyboard.unhook_all()
@@ -1446,7 +1452,7 @@ class AutoClickerApp:
             for set_id, set_data in data['sets'].items():
                 set_id = int(set_id)
                 self.sets[set_id] = {
-                    'name': set_data['name'],  # İsmi yükle
+                    'name': set_data['name'],
                     'coordinates': [Point(x, y) if coords else None 
                                   for coords in set_data['coordinates']
                                   for x, y in ([coords] if coords else [(None, None)])],
@@ -1457,33 +1463,57 @@ class AutoClickerApp:
                     'loop_count': set_data['loop_count']
                 }
                 
-                # Set butonunu oluştur ve ismini ayarla
-                set_button = tk.Button(
-                    self.set_buttons_frame,
-                    text=set_data['name'],  # Kaydedilmiş ismi kullan
+                # Her set için bir frame oluştur
+                set_frame = ttk.Frame(self.set_buttons_frame)
+                set_frame.grid(row=0, column=len(self.set_buttons)+1, padx=10, sticky="w")
+                
+                # Set butonu
+                set_btn = tk.Button(
+                    set_frame,
+                    text=set_data['name'],
                     command=lambda sid=set_id: self.switch_set(sid),
                     bg=self.colors['bg'],
                     fg=self.colors['text'],
-                    font=('Segoe UI', 10),
+                    font=('Segoe UI', 9),
                     relief=tk.RAISED,
-                    bd=1
+                    bd=1,
+                    width=10
                 )
-                set_button.grid(row=0, column=len(self.set_buttons) + 1, padx=5)
+                set_btn.pack(side=tk.LEFT, padx=2)
                 
-                # Sağ tık menüsü
-                menu = tk.Menu(set_button, tearoff=0)
-                menu.add_command(label="İsim Değiştir", 
-                               command=lambda sid=set_id: self.rename_set(sid))
+                # İsim Değiştir butonu
+                rename_btn = tk.Button(
+                    set_frame,
+                    text="✏️",
+                    command=lambda sid=set_id: self.rename_set(sid),
+                    bg=self.colors['bg'],
+                    fg=self.colors['text'],
+                    font=('Segoe UI', 9),
+                    relief=tk.FLAT,
+                    bd=0,
+                    width=3
+                )
+                rename_btn.pack(side=tk.LEFT, padx=2)
                 
-                def show_menu(event):
-                    menu.post(event.x_root, event.y_root)
+                # Kuyruğa Ekle butonu
+                add_queue_btn = tk.Button(
+                    set_frame,
+                    text="➕",
+                    command=lambda sid=set_id: self.add_to_queue(sid),
+                    bg=self.colors['success'],
+                    fg='white',
+                    font=('Segoe UI', 9),
+                    relief=tk.RAISED,
+                    bd=1,
+                    width=3
+                )
+                add_queue_btn.pack(side=tk.LEFT, padx=2)
                 
-                set_button.bind("<Button-3>", show_menu)
-                self.set_buttons.append(set_button)
+                self.set_buttons.append(set_btn)
                 
                 # Eğer bu aktif set ise, butonun rengini güncelle
                 if set_id == data['active_set']:
-                    set_button.configure(bg=self.colors['primary'], fg='white')
+                    set_btn.configure(bg=self.colors['primary'], fg='white')
             
             # Diğer verileri yükle
             self.active_set = data['active_set']
