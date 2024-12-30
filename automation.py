@@ -221,8 +221,8 @@ class AutoClickerApp:
         coordinates_list_frame.grid_columnconfigure(1, weight=1)
         
         # Başlık satırı
-        headers = ["Koordinat", "Sol Tık", "Sağ Tık", "Çift Tık", "Metin", "Gecikme", "Sıra", "Git", "Güncelle"]
-        header_widths = [20, 8, 8, 8, 15, 8, 5, 5, 8]  # Metin sütunu için genişlik ekledik
+        headers = ["Koordinat", "Tıklama", "Metin", "Gecikme", "Sıra", "Git", "Güncelle"]
+        header_widths = [20, 8, 15, 8, 5, 5, 8]  # Tıklama sütunu için genişliği azalttık
         
         # Her sütun için başlıkları ekle
         for col in [left_column, right_column]:
@@ -244,62 +244,75 @@ class AutoClickerApp:
             # Koordinat etiketi
             coord_label = ttk.Label(current_frame, text=f"K {i+1}: ", width=15)
             coord_label.grid(row=row, column=0, padx=2, pady=2, sticky="w")
-            coord_label.bind('<Double-Button-1>', lambda e, idx=i: self.start_edit_label(e, idx))  # Çift tıklama olayını bağla
+            coord_label.bind('<Double-Button-1>', lambda e, idx=i: self.start_edit_label(e, idx))
             self.coordinates_labels.append(coord_label)
+            
+            # Tıklama butonları için frame
+            click_frame = ttk.Frame(current_frame)
+            click_frame.grid(row=row, column=1, padx=2, pady=2)
             
             # Sol tık butonu
             left_btn = tk.Button(
-                current_frame,
-                text="Sol",
+                click_frame,
+                text="◀",  # Sol ok işareti
                 command=lambda x=i: self.toggle_click_type(x, 'left'),
-                width=6,
+                width=2,
                 bg=self.colors['primary'],
-                fg='white'
+                fg='white',
+                font=(self.styles['font_family'], 8),
+                relief=tk.FLAT,
+                cursor='hand2'
             )
-            left_btn.grid(row=row, column=1, padx=2, pady=2)
+            left_btn.pack(side=tk.LEFT, padx=1)
             self.left_buttons.append(left_btn)
             
             # Sağ tık butonu
             right_btn = tk.Button(
-                current_frame,
-                text="Sağ",
+                click_frame,
+                text="▶",  # Sağ ok işareti
                 command=lambda x=i: self.toggle_click_type(x, 'right'),
-                width=6,
+                width=2,
                 bg=self.colors['bg'],
-                fg=self.colors['text']
+                fg=self.colors['text'],
+                font=(self.styles['font_family'], 8),
+                relief=tk.FLAT,
+                cursor='hand2'
             )
-            right_btn.grid(row=row, column=2, padx=2, pady=2)
+            right_btn.pack(side=tk.LEFT, padx=1)
             self.right_buttons.append(right_btn)
             
             # Double click butonu
             double_btn = tk.Button(
-                current_frame,
-                text="2x",
+                click_frame,
+                text="⚡",  # Yıldırım işareti
                 command=lambda x=i: self.toggle_click_type(x, 'double'),
-                width=6,
+                width=2,
                 bg=self.colors['bg'],
-                fg=self.colors['text']
+                fg=self.colors['text'],
+                font=(self.styles['font_family'], 8),
+                relief=tk.FLAT,
+                cursor='hand2'
             )
-            double_btn.grid(row=row, column=3, padx=2, pady=2)
+            double_btn.pack(side=tk.LEFT, padx=1)
             self.double_buttons.append(double_btn)
             
             # Metin girişi alanı
             text_entry = ttk.Entry(current_frame, width=15)
-            text_entry.grid(row=row, column=4, padx=2, pady=2)
+            text_entry.grid(row=row, column=2, padx=2, pady=2)
             text_entry.bind('<Return>', self.clear_focus)
             self.text_entries.append(text_entry)
             
             # Gecikme süresi girişi
             delay_entry = ttk.Entry(current_frame, width=8)
             delay_entry.insert(0, "0.5")
-            delay_entry.grid(row=row, column=5, padx=2, pady=2)
+            delay_entry.grid(row=row, column=3, padx=2, pady=2)
             delay_entry.bind('<Return>', self.clear_focus)
             self.delay_entries.append(delay_entry)
             
             # Sıra numarası girişi
             order_entry = ttk.Entry(current_frame, width=5)
             order_entry.insert(0, str(i))
-            order_entry.grid(row=row, column=6, padx=2, pady=2)
+            order_entry.grid(row=row, column=4, padx=2, pady=2)
             order_entry.bind('<Return>', self.clear_focus)
             self.order_entries.append(order_entry)
             
@@ -308,9 +321,11 @@ class AutoClickerApp:
                 current_frame,
                 text="Git",
                 command=lambda x=i: self.goto_coordinate(x),
-                width=5
+                width=5,
+                relief=tk.FLAT,
+                cursor='hand2'
             )
-            goto_btn.grid(row=row, column=7, padx=2, pady=2)
+            goto_btn.grid(row=row, column=5, padx=2, pady=2)
             self.goto_buttons.append(goto_btn)
             
             # Güncelle butonu
@@ -318,9 +333,11 @@ class AutoClickerApp:
                 current_frame,
                 text="Güncelle",
                 command=lambda x=i: self.update_coordinate(x),
-                width=8
+                width=8,
+                relief=tk.FLAT,
+                cursor='hand2'
             )
-            update_btn.grid(row=row, column=8, padx=2, pady=2)
+            update_btn.grid(row=row, column=6, padx=2, pady=2)
             self.update_buttons.append(update_btn)
         
         # Kontrol paneli
