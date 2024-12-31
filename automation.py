@@ -588,27 +588,30 @@ class AutoClickerApp:
                 elif clicks[self.current_coord] == 'double':
                     pyautogui.doubleClick(coord.x, coord.y)
                 
-                # Metin varsa yaz - Setin kendi verisini kullan
+                # Metin varsa yaz
                 text = current_set['texts'][self.current_coord]
                 if text and text.strip():
                     time.sleep(0.1)
                     pyautogui.write(text)
                 
-                # Gecikme süresini uygula
+                # Gecikme süresini uygula - Düzeltilmiş kısım
                 try:
                     delay = float(current_set['delays'][self.current_coord])
-                except ValueError:
+                    if delay < 0.1:  # Minimum gecikme kontrolü
+                        delay = 0.1
+                except (ValueError, IndexError):
                     delay = 0.5
                 
                 # Sonraki koordinata geç
                 self.current_coord += 1
                 
                 # Bir sonraki işlemi planla
-                self.root.after(int(delay * 1000), self.process_queue)
+                time.sleep(delay)  # time.sleep kullanarak gerçek bekleme ekledik
+                self.root.after(10, self.process_queue)  # Minimum gecikme ile devam et
             else:
                 # Boş koordinatı atla
                 self.current_coord += 1
-                self.root.after(100, self.process_queue)
+                self.root.after(10, self.process_queue)
                 
         except Exception as e:
             print(f"İşlem hatası: {e}")
@@ -967,16 +970,16 @@ class AutoClickerApp:
         if set_id not in self.sets:
             return
         
-        # Mevcut setin metin verilerini kaydet
+        # Mevcut setin verilerini kaydet
         self.sets[self.active_set]['texts'] = [entry.get() for entry in self.text_entries]
+        # Gecikme sürelerini float formatında kaydet
+        self.sets[self.active_set]['delays'] = [f"{float(entry.get()):.1f}" for entry in self.delay_entries]
         
         # Aktif seti güncelle
         self.active_set = set_id
         
         # Set butonlarının renklerini güncelle
         for i, btn in enumerate(self.set_buttons):
-            # Her butonun command'i lambda: self.switch_set(set_id) şeklinde
-            # i+1 kullanıyoruz çünkü set_id'ler 1'den başlıyor
             if i+1 == set_id:
                 btn.configure(bg=self.colors['primary'], fg='white')
             else:
@@ -1009,10 +1012,10 @@ class AutoClickerApp:
             elif click_type == 'double':
                 self.double_buttons[i].configure(bg=self.colors['primary'], fg='white')
         
-        # Gecikme sürelerini güncelle
+        # Gecikme sürelerini güncelle - float formatında göster
         for i, delay in enumerate(self.sets[set_id]['delays']):
             self.delay_entries[i].delete(0, tk.END)
-            self.delay_entries[i].insert(0, delay)
+            self.delay_entries[i].insert(0, f"{float(delay):.1f}")
         
         # Sıra numaralarını güncelle
         for i, order in enumerate(self.sets[set_id]['order']):
@@ -1355,10 +1358,10 @@ class AutoClickerApp:
             'coordinates': [None] * 20,
             'names': [f"K {i+1}" for i in range(20)],
             'clicks': ['left'] * 20,
-            'delays': ['0.5'] * 20,
+            'delays': ['0.5'] * 20,  # Varsayılan gecikme süresi
             'order': list(range(20)),
             'loop_count': 1,
-            'texts': [''] * 20  # Her koordinat için metin alanı
+            'texts': [''] * 20
         }
         
         # Set butonunu oluştur
