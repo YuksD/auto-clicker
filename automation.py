@@ -76,9 +76,6 @@ class AutoClickerApp:
         # Pencere kapatma protokolü
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-        # P tuşu ile duraklatma/devam etme
-        keyboard.on_press_key('p', self.handle_pause_key)
-        
         # Set yönetimi için değişkenler
         self.sets = {}
         self.current_set_id = 1
@@ -105,7 +102,9 @@ class AutoClickerApp:
         self.recording_mode = False
         self.current_queue_index = 0
         self.execution_queue = []
-        self.update_mode = None  # Güncelleme modu için değişken eklendi
+        self.update_mode = None
+        self.current_loop = 0
+        self.current_coord = 0
         
         # İlk seti oluştur
         self.sets[1] = {
@@ -1284,7 +1283,6 @@ class AutoClickerApp:
             # Başlamadan önce TÜM setlerin metin ve gecikme verilerini kaydet
             for set_id in self.sets:
                 if set_id == self.active_set:
-                    # Aktif setin verilerini kaydet
                     self.sets[set_id]['texts'] = [entry.get() for entry in self.text_entries]
                     self.sets[set_id]['delays'] = [f"{float(entry.get()):.1f}" for entry in self.delay_entries]
             
@@ -1297,6 +1295,7 @@ class AutoClickerApp:
             self.current_coord = 0
             
             # P tuşunu bağla
+            keyboard.unhook_all()  # Önce tüm bağlantıları temizle
             keyboard.on_press_key('p', self.handle_pause_key)
             
             self.automation_button.config(
@@ -1429,31 +1428,24 @@ class AutoClickerApp:
     def handle_pause_key(self, event):
         """P tuşuna basıldığında çağrılır"""
         if self.running:
-            self.root.after(0, self.toggle_pause)
-
-    def toggle_pause(self):
-        """Otomasyonu duraklatır/devam ettirir"""
-        if not self.running:
-            return
-        
-        self.paused = not self.paused
-        
-        if self.paused:
-            # Duraklatıldı
-            self.pause_button.config(
-                text="▶️ Devam Et",
-                bg=self.colors['success'],
-                fg='white'
-            )
-        else:
-            # Devam ediyor
-            self.pause_button.config(
-                text="⏸️ Duraklat",
-                bg=self.colors['bg'],
-                fg=self.colors['text']
-            )
-            # Devam ettirme
-            self.root.after(100, self.process_queue)
+            self.paused = not self.paused
+            
+            if self.paused:
+                # Duraklatıldı
+                self.pause_button.config(
+                    text="▶️ Devam Et",
+                    bg=self.colors['success'],
+                    fg='white'
+                )
+            else:
+                # Devam ediyor
+                self.pause_button.config(
+                    text="⏸️ Duraklat",
+                    bg=self.colors['bg'],
+                    fg=self.colors['text']
+                )
+                # Devam ettirme
+                self.root.after(100, self.process_queue)
 
     def new_file(self):
         """Yeni dosya oluşturur"""
@@ -1550,6 +1542,10 @@ class AutoClickerApp:
             return
         
         try:
+            # Eğer otomasyon çalışıyorsa durdur
+            if self.running:
+                self.toggle_automation()
+            
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
@@ -1583,14 +1579,18 @@ class AutoClickerApp:
             self.current_set_id = data['current_set_id']
             self.execution_queue = data.get('execution_queue', [])
             
+            # Çalışma durumu değişkenlerini sıfırla
+            self.running = False
+            self.paused = False
+            self.current_loop = 0
+            self.current_coord = 0
+            self.current_queue_index = 0
+            
+            # P tuşu bağlantısını temizle
+            keyboard.unhook_all()
+            
             # Dosya yolunu kaydet
             self.current_file = file_path
-            
-            # Set 1'in gecikme değerlerini güncelle
-            if 1 in self.sets:
-                for i, delay in enumerate(self.sets[1]['delays']):
-                    self.delay_entries[i].delete(0, tk.END)
-                    self.delay_entries[i].insert(0, str(delay))
             
             # UI'ı güncelle
             self.switch_set(self.active_set)
