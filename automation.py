@@ -113,10 +113,10 @@ class AutoClickerApp:
             'coordinates': [None] * 20,
             'names': [f"K {i+1}" for i in range(20)],
             'clicks': ['left'] * 20,
-            'delays': ['0.5'] * 20,
+            'delays': [f"{0.5:.1f}"] * 20,  # Varsayılan gecikme süresi float formatında
             'order': list(range(20)),
             'loop_count': 1,
-            'texts': [''] * 20  # Her koordinat için metin alanı
+            'texts': [''] * 20
         }
         
         # UI kurulumu
@@ -275,7 +275,7 @@ class AutoClickerApp:
                 bg=self.colors['bg'],
                 fg=self.colors['text'],
                 font=(self.styles['font_family'], 8),
-                relief=tk.FLAT,
+                relief=tk.RAISED,
                 cursor='hand2'
             )
             right_btn.pack(side=tk.LEFT, padx=1)
@@ -290,7 +290,7 @@ class AutoClickerApp:
                 bg=self.colors['bg'],
                 fg=self.colors['text'],
                 font=(self.styles['font_family'], 8),
-                relief=tk.FLAT,
+                relief=tk.RAISED,
                 cursor='hand2'
             )
             double_btn.pack(side=tk.LEFT, padx=1)
@@ -1281,8 +1281,12 @@ class AutoClickerApp:
                 messagebox.showwarning("Uyarı", "İşlem kuyruğu boş!")
                 return
                 
-            # Başlamadan önce mevcut setin metin verilerini kaydet
-            self.sets[self.active_set]['texts'] = [entry.get() for entry in self.text_entries]
+            # Başlamadan önce TÜM setlerin metin ve gecikme verilerini kaydet
+            for set_id in self.sets:
+                if set_id == self.active_set:
+                    # Aktif setin verilerini kaydet
+                    self.sets[set_id]['texts'] = [entry.get() for entry in self.text_entries]
+                    self.sets[set_id]['delays'] = [f"{float(entry.get()):.1f}" for entry in self.delay_entries]
             
             # Otomasyonu başlat
             self.running = True
@@ -1358,7 +1362,7 @@ class AutoClickerApp:
             'coordinates': [None] * 20,
             'names': [f"K {i+1}" for i in range(20)],
             'clicks': ['left'] * 20,
-            'delays': ['0.5'] * 20,  # Varsayılan gecikme süresi
+            'delays': [f"{0.5:.1f}"] * 20,  # Varsayılan gecikme süresi float formatında
             'order': list(range(20)),
             'loop_count': 1,
             'texts': [''] * 20
@@ -1463,10 +1467,10 @@ class AutoClickerApp:
                 'coordinates': [None] * 20,
                 'names': [f"K {i+1}" for i in range(20)],
                 'clicks': ['left'] * 20,
-                'delays': ['0.5'] * 20,
+                'delays': [f"{0.5:.1f}"] * 20,  # Varsayılan gecikme süresi float formatında
                 'order': list(range(20)),
                 'loop_count': 1,
-                'texts': [''] * 20  # Her koordinat için metin alanı
+                'texts': [''] * 20
             }
             
             # Set butonlarını temizle
@@ -1568,7 +1572,7 @@ class AutoClickerApp:
                     'delays': set_data['delays'],
                     'order': set_data['order'],
                     'loop_count': set_data['loop_count'],
-                    'texts': set_data.get('texts', [''] * 20)  # Metin verilerini yükle, yoksa boş liste
+                    'texts': set_data.get('texts', [''] * 20)
                 }
                 
                 # Set butonlarını oluştur
@@ -1577,14 +1581,20 @@ class AutoClickerApp:
             # Diğer verileri yükle
             self.active_set = data['active_set']
             self.current_set_id = data['current_set_id']
-            self.execution_queue = data.get('execution_queue', [])  # Kuyruğu yükle, yoksa boş liste
+            self.execution_queue = data.get('execution_queue', [])
             
             # Dosya yolunu kaydet
             self.current_file = file_path
             
+            # Set 1'in gecikme değerlerini güncelle
+            if 1 in self.sets:
+                for i, delay in enumerate(self.sets[1]['delays']):
+                    self.delay_entries[i].delete(0, tk.END)
+                    self.delay_entries[i].insert(0, str(delay))
+            
             # UI'ı güncelle
             self.switch_set(self.active_set)
-            self.update_queue_ui()  # Kuyruk UI'ını güncelle
+            self.update_queue_ui()
             
             messagebox.showinfo("Başarılı", "Dosya yüklendi!")
             
